@@ -1,0 +1,60 @@
+{
+  "name": "SQUALE · Reproductor de Música",
+  "short_name": "SQUALE",
+  "description": "Reproductor de música retro y tocadiscos analógico de alta fidelidad como Progressive Web App (PWA).",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#babbbb",
+  "theme_color": "#181818",
+  "lang": "es",
+  "categories": ["music", "audio", "entertainment", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Reproducir Vinilo",
+      "url": "/?action=play",
+      "description": "Iniciar la reproducción de música",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Favoritos",
+      "url": "/?view=Favoritos",
+      "description": "Ver tus canciones guardadas",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Biblioteca",
+      "url": "/?view=Canciones",
+      "description": "Explorar todas las canciones",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

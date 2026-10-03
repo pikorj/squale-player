@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="turntableBase" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#333333"/>
+      <stop offset="60%" stop-color="#1c1c1c"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+    <radialGradient id="vinylGrooves" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="15%" stop-color="#141414"/>
+      <stop offset="16%" stop-color="#2a2a2a"/>
+      <stop offset="30%" stop-color="#0a0a0a"/>
+      <stop offset="31%" stop-color="#1f1f1f"/>
+      <stop offset="50%" stop-color="#0d0d0d"/>
+      <stop offset="51%" stop-color="#282828"/>
+      <stop offset="70%" stop-color="#050505"/>
+      <stop offset="71%" stop-color="#1e1e1e"/>
+      <stop offset="85%" stop-color="#000000"/>
+      <stop offset="86%" stop-color="#222222"/>
+      <stop offset="100%" stop-color="#080808"/>
+    </radialGradient>
+    <linearGradient id="labelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#dedede"/>
+      <stop offset="48%" stop-color="#b8b8b8"/>
+      <stop offset="50%" stop-color="#f2f1dc"/>
+      <stop offset="100%" stop-color="#d6d4b2"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- Background plate -->
+  <rect width="512" height="512" rx="104" fill="#babbbb"/>
+  <rect x="24" y="24" width="464" height="464" rx="88" fill="#cacad0" stroke="#181818" stroke-width="12"/>
+
+  <!-- Turntable body -->
+  <circle cx="256" cy="256" r="206" fill="#181818" filter="url(#shadow)"/>
+  <circle cx="256" cy="256" r="200" fill="url(#vinylGrooves)"/>
+
+  <!-- Vinyl Grooves Rings -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#2c2c2c" stroke-width="2" stroke-dasharray="12 4"/>
+  <circle cx="256" cy="256" r="156" fill="none" stroke="#252525" stroke-width="1.5"/>
+  <circle cx="256" cy="256" r="132" fill="none" stroke="#333333" stroke-width="2" stroke-dasharray="8 6"/>
+  <circle cx="256" cy="256" r="110" fill="none" stroke="#222222" stroke-width="1.5"/>
+
+  <!-- Vinyl Center Label -->
+  <circle cx="256" cy="256" r="82" fill="url(#labelGrad)" stroke="#111" stroke-width="4"/>
+  <circle cx="256" cy="256" r="20" fill="#181818"/>
+  <circle cx="256" cy="256" r="8" fill="#f8f8f8"/>
+
+  <!-- Center Text -->
+  <text x="256" y="222" font-family="'Silkscreen', 'Courier New', monospace" font-size="19" font-weight="bold" text-anchor="middle" fill="#111111" letter-spacing="2">SQUALE</text>
+  <text x="256" y="295" font-family="'Courier New', monospace" font-size="12" font-weight="bold" text-anchor="middle" fill="#444444" letter-spacing="1">33⅓ RPM · HI-FI</text>
+
+  <!-- Stylus / Tonearm accent in corner -->
+  <circle cx="430" cy="82" r="32" fill="#2b2b2b" stroke="#111" stroke-width="6"/>
+  <line x1="416" y1="96" x2="330" y2="200" stroke="#888888" stroke-width="10" stroke-linecap="round"/>
+  <line x1="416" y1="96" x2="330" y2="200" stroke="#181818" stroke-width="14" stroke-linecap="round" opacity="0.3"/>
+  <rect x="316" y="194" width="28" height="16" rx="4" transform="rotate(-40 326 202)" fill="#111" stroke="#eee" stroke-width="2"/>
+</svg>

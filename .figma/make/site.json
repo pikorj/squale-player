@@ -1,0 +1,10 @@
+{
+  "description": "Permite crear aplicaciones visuales en español de forma sencilla, facilitando el diseño y desarrollo para usuarios hispanohablantes sin experiencia técnica.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
