@@ -11,7 +11,6 @@ import {
   type StoredTrackRecord,
 } from "./trackStorage";
 import { useBackNavigation } from "./useBackNavigation";
-import { getTrackCoverColors, type CoverColorMode } from "./coverColors";
 
 type IconName =
   | "home"
@@ -198,8 +197,6 @@ function Turntable({
   onTogglePower,
   track,
   showPictureDisc = true,
-  ambientGlow = true,
-  glowColor,
 }: {
   playing: boolean;
   speed: 33 | 45;
@@ -207,8 +204,6 @@ function Turntable({
   onTogglePower?: () => void;
   track?: SongTrack;
   showPictureDisc?: boolean;
-  ambientGlow?: boolean;
-  glowColor?: string;
 }) {
   const hasCover = Boolean(showPictureDisc && track?.image && track.image.trim() !== "");
 
@@ -216,13 +211,6 @@ function Turntable({
     <div
       className={`turntable ${playing ? "is-playing" : ""}`}
       aria-label="Tocadiscos analógico SQUALE"
-      style={
-        ambientGlow && glowColor
-          ? {
-              boxShadow: `inset 0 0 0 3px #cfd0d0, 0 12px 28px rgba(0, 0, 0, 0.22), 0 0 45px ${glowColor}`,
-            }
-          : undefined
-      }
     >
       <span className="screw screw-a" />
       <span className="screw screw-b" />
@@ -663,10 +651,10 @@ export default function App() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  // Cover art & dynamic color settings
-  const [coverAmbientGlow, setCoverAmbientGlow] = useState<boolean>(() => {
+  // Cover art settings: Color vs Classic Black & White (Monochrome) filter
+  const [colorCovers, setColorCovers] = useState<boolean>(() => {
     try {
-      const saved = localStorage.getItem("squale_cover_ambient_glow");
+      const saved = localStorage.getItem("squale_color_covers");
       return saved !== null ? saved === "true" : true;
     } catch {
       return true;
@@ -682,30 +670,12 @@ export default function App() {
     }
   });
 
-  const [coverAccentTint, setCoverAccentTint] = useState<boolean>(() => {
+  const handleToggleColorCovers = (val: boolean) => {
+    setColorCovers(val);
     try {
-      const saved = localStorage.getItem("squale_cover_accent_tint");
-      return saved !== null ? saved === "true" : true;
-    } catch {
-      return true;
-    }
-  });
-
-  const [coverColorPalette, setCoverColorPalette] = useState<CoverColorMode>(() => {
-    try {
-      const saved = localStorage.getItem("squale_cover_palette");
-      return (saved as CoverColorMode) || "dynamic";
-    } catch {
-      return "dynamic";
-    }
-  });
-
-  const handleToggleCoverAmbient = (val: boolean) => {
-    setCoverAmbientGlow(val);
-    try {
-      localStorage.setItem("squale_cover_ambient_glow", String(val));
+      localStorage.setItem("squale_color_covers", String(val));
     } catch {}
-    showNotification(val ? "Aura ambiental de carátula activada" : "Aura ambiental desactivada");
+    showNotification(val ? "Carátulas a color activadas" : "Filtro blanco y negro activado en carátulas");
   };
 
   const handleToggleCoverPictureDisc = (val: boolean) => {
@@ -715,41 +685,6 @@ export default function App() {
     } catch {}
     showNotification(val ? "Arte de carátula en vinilo activado" : "Vinilo analógico 33⅓ RPM clásico activado");
   };
-
-  const handleToggleCoverAccentTint = (val: boolean) => {
-    setCoverAccentTint(val);
-    try {
-      localStorage.setItem("squale_cover_accent_tint", String(val));
-    } catch {}
-    showNotification(val ? "Acento adaptativo con carátula activado" : "Acentos neutros analógicos activados");
-  };
-
-  const handleChangeCoverPalette = (val: CoverColorMode) => {
-    setCoverColorPalette(val);
-    try {
-      localStorage.setItem("squale_cover_palette", val);
-    } catch {}
-    const labels: Record<CoverColorMode, string> = {
-      dynamic: "Dinámico (Carátula)",
-      amber: "Ámbar Cálido (Válvulas)",
-      cyan: "Neón Retro (80s)",
-      mono: "Monocromo",
-    };
-    showNotification(`Paleta de carátula: ${labels[val]}`);
-  };
-
-  // Compute cover colors
-  const coverColors = useMemo(() => {
-    if (!coverAmbientGlow && !coverAccentTint) {
-      return {
-        aura: "rgba(0, 0, 0, 0)",
-        accent: "#111111",
-        softBg: "#fcfcfc",
-        glow: "rgba(0, 0, 0, 0.2)",
-      };
-    }
-    return getTrackCoverColors(currentTrack, coverColorPalette);
-  }, [currentTrack, coverAmbientGlow, coverAccentTint, coverColorPalette]);
 
   // Load persistent library from IndexedDB on startup
   useEffect(() => {
@@ -1358,7 +1293,7 @@ export default function App() {
 
   return (
     <main
-      className={`app-shell ${isDragging ? "is-drag-over" : ""}`}
+      className={`app-shell ${isDragging ? "is-drag-over" : ""} ${colorCovers ? "color-covers" : ""}`}
       onContextMenu={(e) => e.preventDefault()}
       onDragLeave={() => setIsDragging(false)}
       onDragOver={(e) => {
@@ -1951,22 +1886,22 @@ export default function App() {
             </section>
 
             <section style={{ "--card-index": 1 } as React.CSSProperties}>
-              <h2>Colores y Carátula del Álbum</h2>
+              <h2>Carátulas del Álbum</h2>
               <label>
                 <span>
-                  <strong>Iluminación ambiental de carátula</strong>
-                  <small>Halo y aura de luz viva proyectada según el arte del disco</small>
+                  <strong>Carátulas a todo color</strong>
+                  <small>Muestra el arte del álbum en color original o con el filtro analógico blanco y negro</small>
                 </span>
                 <input
-                  checked={coverAmbientGlow}
-                  onChange={(e) => handleToggleCoverAmbient(e.target.checked)}
+                  checked={colorCovers}
+                  onChange={(e) => handleToggleColorCovers(e.target.checked)}
                   type="checkbox"
                 />
               </label>
               <label>
                 <span>
                   <strong>Carátula en vinilo (Picture Disc)</strong>
-                  <small>Arte del disco en el centro del tocadiscos o etiqueta vintage</small>
+                  <small>Arte del disco en el centro del tocadiscos o etiqueta analógica clásica</small>
                 </span>
                 <input
                   checked={coverPictureDisc}
@@ -1974,51 +1909,6 @@ export default function App() {
                   type="checkbox"
                 />
               </label>
-              <label>
-                <span>
-                  <strong>Acento adaptativo de carátula</strong>
-                  <small>Adapta tonos del reproductor y formas de onda al color del álbum</small>
-                </span>
-                <input
-                  checked={coverAccentTint}
-                  onChange={(e) => handleToggleCoverAccentTint(e.target.checked)}
-                  type="checkbox"
-                />
-              </label>
-
-              <div className="palette-picker-wrap">
-                <span className="palette-picker-label">Modo de color de carátula:</span>
-                <div className="palette-picker-buttons">
-                  <button
-                    className={`palette-chip ${coverColorPalette === "dynamic" ? "active" : ""}`}
-                    onClick={() => handleChangeCoverPalette("dynamic")}
-                    type="button"
-                  >
-                    Dinámico (Arte)
-                  </button>
-                  <button
-                    className={`palette-chip ${coverColorPalette === "amber" ? "active" : ""}`}
-                    onClick={() => handleChangeCoverPalette("amber")}
-                    type="button"
-                  >
-                    Ámbar Válvula
-                  </button>
-                  <button
-                    className={`palette-chip ${coverColorPalette === "cyan" ? "active" : ""}`}
-                    onClick={() => handleChangeCoverPalette("cyan")}
-                    type="button"
-                  >
-                    Neón 80s
-                  </button>
-                  <button
-                    className={`palette-chip ${coverColorPalette === "mono" ? "active" : ""}`}
-                    onClick={() => handleChangeCoverPalette("mono")}
-                    type="button"
-                  >
-                    Monocromo
-                  </button>
-                </div>
-              </div>
             </section>
 
             <section style={{ "--card-index": 2 } as React.CSSProperties}>
@@ -2249,8 +2139,6 @@ export default function App() {
       {/* Desktop Player Panel (Column 3 on desktop) */}
       <section className="player-panel" aria-label="Reproductor tocadiscos SQUALE">
         <Turntable
-          ambientGlow={coverAmbientGlow}
-          glowColor={coverColors.glow}
           onTogglePower={handleTogglePlay}
           onToggleSpeed={handleToggleSpeed}
           playing={playing}
@@ -2308,10 +2196,7 @@ export default function App() {
                   key={`desk-${height}-${index}`}
                   onClick={() => handleSeek(barRatio)}
                   role="button"
-                  style={{
-                    height,
-                    ...(coverAccentTint && isPlayed ? { background: coverColors.accent } : {}),
-                  }}
+                  style={{ height }}
                   tabIndex={0}
                   title={`Saltar a ${formatTime(barRatio * duration)}`}
                 />
@@ -2459,19 +2344,14 @@ export default function App() {
         <section
           className="mobile-expanded-player"
           aria-label="Reproductor tocadiscos ampliado"
-          style={{
-            ...(sheetDragY > 0
+          style={
+            sheetDragY > 0
               ? {
                   transform: `translateY(${sheetDragY}px)`,
                   transition: isDraggingSheet ? "none" : "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
                 }
-              : {}),
-            ...(coverAccentTint && coverAmbientGlow
-              ? {
-                  background: `radial-gradient(circle at 50% 16%, ${coverColors.softBg} 0%, #d8d8d8 60%, #c5c6c6 100%)`,
-                }
-              : {}),
-          }}
+              : undefined
+          }
         >
           {/* Native Grab Handle Pill */}
           <div
@@ -2515,8 +2395,6 @@ export default function App() {
 
           <div className="expanded-turntable">
             <Turntable
-              ambientGlow={coverAmbientGlow}
-              glowColor={coverColors.glow}
               onTogglePower={handleTogglePlay}
               onToggleSpeed={handleToggleSpeed}
               playing={playing}
@@ -2564,10 +2442,7 @@ export default function App() {
                     key={`exp-${height}-${index}`}
                     onClick={() => handleSeek(barRatio)}
                     role="button"
-                    style={{
-                      height: Math.max(12, height * 0.78),
-                      ...(coverAccentTint && isPlayed ? { background: coverColors.accent } : {}),
-                    }}
+                    style={{ height: Math.max(12, height * 0.78) }}
                     tabIndex={0}
                   />
                 );

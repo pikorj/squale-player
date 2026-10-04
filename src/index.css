@@ -4359,49 +4359,27 @@ button:active {
   100% { transform: scale(1); }
 }
 
-/* --- Cover Art & Ambient Palette Picker in Settings --- */
-.palette-picker-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 14px;
+/* --- Album Cover Art: Color vs Black & White (Monochrome) Filter --- */
+.app-shell.color-covers .album-card img,
+.app-shell.color-covers .playlist-row img,
+.app-shell.color-covers .song-thumb-img,
+.app-shell.color-covers .album-art-wrap img,
+.app-shell.color-covers .library-album img,
+.app-shell.color-covers .mobile-result-row img,
+.app-shell.color-covers .picture-disc-art,
+.app-shell.color-covers .details-cover-img {
+  filter: none !important;
 }
 
-.palette-picker-label {
-  font-family: "Silkscreen", monospace;
-  font-size: 10px;
-  color: #333;
-  letter-spacing: 0.3px;
-}
-
-.palette-picker-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.palette-chip {
-  padding: 6px 12px;
-  border: 1.5px solid #181818;
-  border-radius: 8px;
-  background: #dedede;
-  color: #181818;
-  font-family: "Silkscreen", monospace;
-  font-size: 10px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 2px 2px 0 #181818;
-}
-
-.palette-chip:hover {
-  background: #ebebeb;
-  transform: translateY(-1px);
-}
-
-.palette-chip.active {
-  background: #181818;
-  color: #f5f5f5;
-  box-shadow: 2px 2px 0 #666;
+.app-shell:not(.color-covers) .album-card img,
+.app-shell:not(.color-covers) .playlist-row img,
+.app-shell:not(.color-covers) .song-thumb-img,
+.app-shell:not(.color-covers) .album-art-wrap img,
+.app-shell:not(.color-covers) .library-album img,
+.app-shell:not(.color-covers) .mobile-result-row img,
+.app-shell:not(.color-covers) .picture-disc-art,
+.app-shell:not(.color-covers) .details-cover-img {
+  filter: grayscale(1) contrast(1.1) !important;
 }
 
 
