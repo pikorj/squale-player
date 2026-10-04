@@ -4359,4 +4359,49 @@ button:active {
   100% { transform: scale(1); }
 }
 
+/* --- Cover Art & Ambient Palette Picker in Settings --- */
+.palette-picker-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.palette-picker-label {
+  font-family: "Silkscreen", monospace;
+  font-size: 10px;
+  color: #333;
+  letter-spacing: 0.3px;
+}
+
+.palette-picker-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.palette-chip {
+  padding: 6px 12px;
+  border: 1.5px solid #181818;
+  border-radius: 8px;
+  background: #dedede;
+  color: #181818;
+  font-family: "Silkscreen", monospace;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 2px 2px 0 #181818;
+}
+
+.palette-chip:hover {
+  background: #ebebeb;
+  transform: translateY(-1px);
+}
+
+.palette-chip.active {
+  background: #181818;
+  color: #f5f5f5;
+  box-shadow: 2px 2px 0 #666;
+}
+
 
