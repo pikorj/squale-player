@@ -10,6 +10,7 @@ import {
   recordsToSongTracks,
   type StoredTrackRecord,
 } from "./trackStorage";
+import { useBackNavigation } from "./useBackNavigation";
 
 type IconName =
   | "home"
@@ -743,12 +744,35 @@ export default function App() {
   }, [likedTracks]);
 
   // Toast notification helper
-  const showNotification = (msg: string) => {
+  const showNotification = useCallback((msg: string) => {
     setNotificationMsg(msg);
     setTimeout(() => {
       setNotificationMsg((curr) => (curr === msg ? null : curr));
     }, 3500);
-  };
+  }, []);
+
+  // Mobile & PWA Back Button / History navigation management
+  useBackNavigation({
+    detailsModalOpen,
+    setDetailsModalOpen,
+    showImportModal,
+    setShowImportModal,
+    showInstallModal,
+    setShowInstallModal,
+    queueOpen,
+    setQueueOpen,
+    lyricsOpen,
+    setLyricsOpen,
+    showVolumePopover,
+    setShowVolumePopover,
+    mobilePlayerOpen,
+    setMobilePlayerOpen,
+    selectedTag,
+    setSelectedTag,
+    activeNav,
+    setActiveNav,
+    showNotification,
+  });
 
   // Audio engine time update subscription
   useEffect(() => {
