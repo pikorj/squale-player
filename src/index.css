@@ -2738,29 +2738,30 @@ button.song-row:hover .song-thumb-overlay,
 
   .expanded-turntable {
     width: 100%;
-    max-width: 380px;
+    max-width: 420px;
     margin: 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .expanded-turntable .turntable {
     width: 100%;
-    max-width: min(100%, 360px);
+    max-width: min(88vw, 42vh, 410px);
     height: auto;
-    max-height: 38vh;
+    max-height: 42vh;
     aspect-ratio: 1.15;
     margin: 0 auto;
     border-radius: 24px;
-    box-shadow: inset 0 0 0 3px #cfd0d0, 0 10px 22px rgba(0, 0, 0, 0.2);
+    box-shadow: inset 0 0 0 3px #cfd0d0, 0 12px 28px rgba(0, 0, 0, 0.22);
   }
 
   .expanded-track {
     width: 100%;
-    max-width: 360px;
-    margin: clamp(10px, 1.8vh, 18px) auto 0;
+    max-width: 380px;
+    margin: clamp(10px, 2.2vh, 22px) auto 0;
     padding: 0 4px;
     flex-shrink: 0;
     display: flex;
@@ -2823,8 +2824,8 @@ button.song-row:hover .song-thumb-overlay,
 
   .expanded-progress {
     width: 100%;
-    max-width: 360px;
-    margin: clamp(10px, 1.8vh, 18px) auto 0;
+    max-width: 380px;
+    margin: clamp(10px, 2.2vh, 22px) auto 0;
     padding: 0 4px;
     flex-shrink: 0;
     display: grid;
@@ -2869,8 +2870,8 @@ button.song-row:hover .song-thumb-overlay,
 
   .expanded-controls {
     width: 100%;
-    max-width: 360px;
-    margin: clamp(12px, 2.2vh, 22px) auto 0;
+    max-width: 380px;
+    margin: clamp(12px, 2.6vh, 28px) auto 0;
     padding: 0 4px;
     flex-shrink: 0;
     display: flex;
@@ -2913,8 +2914,8 @@ button.song-row:hover .song-thumb-overlay,
 
   .expanded-secondary-actions {
     width: 100%;
-    max-width: 360px;
-    margin: clamp(12px, 2.2vh, 24px) auto clamp(4px, 1vh, 12px);
+    max-width: 380px;
+    margin: clamp(12px, 2.6vh, 30px) auto clamp(8px, 2vh, 20px);
     padding: 0 4px;
     flex-shrink: 0;
     display: flex;
@@ -2938,6 +2939,88 @@ button.song-row:hover .song-thumb-overlay,
 
   .expanded-secondary-actions button:active {
     transform: scale(0.9);
+  }
+
+  @media (min-height: 800px) {
+    .expanded-turntable .turntable {
+      max-width: min(90vw, 44vh, 420px);
+      max-height: 44vh;
+    }
+
+    .expanded-track {
+      margin-top: clamp(14px, 2.6vh, 28px);
+    }
+
+    .expanded-progress {
+      margin-top: clamp(14px, 2.6vh, 28px);
+    }
+
+    .expanded-controls {
+      margin-top: clamp(18px, 3.4vh, 38px);
+    }
+
+    .expanded-controls .expanded-main-control {
+      width: 72px;
+      height: 72px;
+    }
+
+    .expanded-secondary-actions {
+      margin-top: clamp(18px, 3.4vh, 36px);
+      margin-bottom: max(14px, env(safe-area-inset-bottom));
+    }
+  }
+
+  @media (max-height: 680px) {
+    .mobile-expanded-player {
+      padding-top: max(4px, env(safe-area-inset-top));
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+    }
+
+    .mobile-expanded-player > header {
+      min-height: 30px;
+      margin-bottom: 2px;
+    }
+
+    .expanded-turntable .turntable {
+      max-width: min(78vw, 29vh, 260px);
+      max-height: 29vh;
+      border-radius: 18px;
+    }
+
+    .expanded-track {
+      margin-top: 6px;
+    }
+
+    .expanded-track h1 {
+      font-size: 18px;
+    }
+
+    .expanded-progress {
+      margin-top: 6px;
+    }
+
+    .expanded-progress > div {
+      height: 28px;
+    }
+
+    .expanded-controls {
+      margin-top: 8px;
+    }
+
+    .expanded-controls button {
+      width: 38px;
+      height: 38px;
+    }
+
+    .expanded-controls .expanded-main-control {
+      width: 56px;
+      height: 56px;
+    }
+
+    .expanded-secondary-actions {
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
   }
 
   .player-queue {
