@@ -114,6 +114,22 @@ function formatLikes(count: number): string {
   return String(count);
 }
 
+function triggerHaptic(type: "light" | "medium" | "heavy" = "light") {
+  if (typeof window !== "undefined" && "vibrate" in navigator) {
+    try {
+      if (type === "light") {
+        navigator.vibrate(8);
+      } else if (type === "medium") {
+        navigator.vibrate(16);
+      } else if (type === "heavy") {
+        navigator.vibrate([22, 30, 22]);
+      }
+    } catch {
+      // browser vibration policy
+    }
+  }
+}
+
 const categories = ["Clásicos", "90s", "Novedades", "Instrumental", "Pop moderno"];
 
 interface AlbumItem {
@@ -487,6 +503,32 @@ export default function App() {
 
   const [query, setQuery] = useState("");
   const [mobilePlayerOpen, setMobilePlayerOpen] = useState(false);
+  const [sheetDragY, setSheetDragY] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+  const sheetTouchStartYRef = useRef(0);
+
+  const handleSheetTouchStart = (e: React.TouchEvent) => {
+    sheetTouchStartYRef.current = e.touches[0].clientY;
+    setIsDraggingSheet(true);
+  };
+
+  const handleSheetTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingSheet) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - sheetTouchStartYRef.current;
+    if (diff > 0) {
+      setSheetDragY(diff);
+    }
+  };
+
+  const handleSheetTouchEnd = () => {
+    if (sheetDragY > 80) {
+      setMobilePlayerOpen(false);
+      triggerHaptic("light");
+    }
+    setSheetDragY(0);
+    setIsDraggingSheet(false);
+  };
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
   const [shuffle, setShuffle] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
@@ -607,6 +649,7 @@ export default function App() {
   }, []);
 
   const handleTogglePlay = useCallback(() => {
+    triggerHaptic("medium");
     if (playing) {
       handlePause();
     } else {
@@ -615,6 +658,7 @@ export default function App() {
   }, [playing, handlePause, handlePlay]);
 
   const handleNextTrack = useCallback(() => {
+    triggerHaptic("light");
     if (tracks.length === 0) return;
     let nextIndex = 0;
     if (shuffle) {
@@ -628,6 +672,7 @@ export default function App() {
   }, [tracks, currentTrack, shuffle, handlePlay]);
 
   const handlePrevTrack = useCallback(() => {
+    triggerHaptic("light");
     if (tracks.length === 0) return;
     if (currentTime > 4) {
       audioEngine.seek(0);
@@ -753,11 +798,13 @@ export default function App() {
   };
 
   const handleSeek = (ratio: number) => {
+    triggerHaptic("light");
     audioEngine.seek(ratio);
     setCurrentTime(ratio * duration);
   };
 
   const handleToggleLike = (trackId: string) => {
+    triggerHaptic("medium");
     setLikedTracks((prev) => {
       const next = new Set(prev);
       if (next.has(trackId)) {
@@ -772,9 +819,10 @@ export default function App() {
   };
 
   const handleToggleSpeed = () => {
+    triggerHaptic("medium");
     const nextSpeed = speed === 33 ? 45 : 33;
-    setSpeed(nextSpeed);
     audioEngine.setSpeed(nextSpeed);
+    setSpeed(nextSpeed);
     showNotification(`Velocidad ajustada a ${nextSpeed} RPM`);
   };
 
@@ -903,6 +951,7 @@ export default function App() {
   return (
     <main
       className={`app-shell ${isDragging ? "is-drag-over" : ""}`}
+      onContextMenu={(e) => e.preventDefault()}
       onDragLeave={() => setIsDragging(false)}
       onDragOver={(e) => {
         e.preventDefault();
@@ -1038,7 +1087,10 @@ export default function App() {
           <button
             aria-label="Buscar"
             className={`mobile-search-button ${activeNav === "Buscar" ? "active" : ""}`}
-            onClick={() => setActiveNav("Buscar")}
+            onClick={() => {
+              triggerHaptic("light");
+              setActiveNav("Buscar");
+            }}
             title="Buscar"
             type="button"
           >
@@ -1049,7 +1101,10 @@ export default function App() {
               aria-label={item.label}
               className={activeNav === item.label ? "active" : ""}
               key={item.label}
-              onClick={() => setActiveNav(item.label)}
+              onClick={() => {
+                triggerHaptic("light");
+                setActiveNav(item.label);
+              }}
               title={item.label}
               type="button"
             >
@@ -1674,7 +1729,10 @@ export default function App() {
       <button
         aria-label="Abrir reproductor a pantalla completa"
         className={`mobile-mini-player ${playing ? "is-playing" : ""}`}
-        onClick={() => setMobilePlayerOpen(true)}
+        onClick={() => {
+          triggerHaptic("light");
+          setMobilePlayerOpen(true);
+        }}
         type="button"
       >
         <span
@@ -1717,13 +1775,41 @@ export default function App() {
         </span>
       </button>
 
-      {/* Mobile & Fullscreen Expanded Player Modal */}
+      {/* Mobile & Fullscreen Expanded Player Modal with Pull-to-Dismiss */}
       {mobilePlayerOpen && (
-        <section className="mobile-expanded-player" aria-label="Reproductor tocadiscos ampliado">
-          <header>
+        <section
+          className="mobile-expanded-player"
+          aria-label="Reproductor tocadiscos ampliado"
+          style={
+            sheetDragY > 0
+              ? {
+                  transform: `translateY(${sheetDragY}px)`,
+                  transition: isDraggingSheet ? "none" : "transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)",
+                }
+              : undefined
+          }
+        >
+          {/* Native Grab Handle Pill */}
+          <div
+            className="mobile-sheet-pill-wrap"
+            onTouchEnd={handleSheetTouchEnd}
+            onTouchMove={handleSheetTouchMove}
+            onTouchStart={handleSheetTouchStart}
+          >
+            <div className="mobile-sheet-pill" />
+          </div>
+
+          <header
+            onTouchEnd={handleSheetTouchEnd}
+            onTouchMove={handleSheetTouchMove}
+            onTouchStart={handleSheetTouchStart}
+          >
             <button
               aria-label="Minimizar reproductor"
-              onClick={() => setMobilePlayerOpen(false)}
+              onClick={() => {
+                triggerHaptic("light");
+                setMobilePlayerOpen(false);
+              }}
               type="button"
             >
               <span className="collapse-line" />
@@ -1732,7 +1818,10 @@ export default function App() {
             <button
               aria-label="Detalles de la canción"
               className="more-details-btn"
-              onClick={() => setDetailsModalOpen(true)}
+              onClick={() => {
+                triggerHaptic("light");
+                setDetailsModalOpen(true);
+              }}
               title="Detalles de la canción"
               type="button"
             >
