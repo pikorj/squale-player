@@ -1634,21 +1634,43 @@ export default function App() {
       ) : activeNav === "Favoritos" ? (
         <section key="screen-favoritos" className="secondary-screen">
           <ScreenHeader eyebrow="Tu colección" title="Favoritos" />
-          <div className="favorite-hero">
-            <div className="favorite-disc"><Icon name="heart" size={43} /></div>
-            <div>
-              <strong>Selección personal</strong>
-              <span>{favoriteTracks.length} canciones guardadas</span>
+          <div className="favorites-toolbar">
+            <div className="favorites-info">
+              <span className="favorites-badge">
+                <Icon name="heart" size={14} filled />
+                <span>{favoriteTracks.length} {favoriteTracks.length === 1 ? "canción" : "canciones"}</span>
+              </span>
             </div>
-            <button
-              aria-label="Reproducir favoritos"
-              onClick={() => {
-                if (favoriteTracks.length > 0) handlePlay(favoriteTracks[0]);
-              }}
-              type="button"
-            >
-              <Icon name="play" size={28} />
-            </button>
+            {favoriteTracks.length > 0 && (
+              <div className="favorites-actions">
+                <button
+                  aria-label="Reproducir favoritos"
+                  className="fav-action-btn fav-play-btn"
+                  onClick={() => {
+                    triggerHaptic("medium");
+                    handlePlay(favoriteTracks[0]);
+                  }}
+                  title="Reproducir favoritos"
+                  type="button"
+                >
+                  <Icon name="play" size={20} />
+                </button>
+                <button
+                  aria-label="Reproducción aleatoria de favoritos"
+                  className={`fav-action-btn ${shuffle ? "is-active" : ""}`}
+                  onClick={() => {
+                    triggerHaptic("light");
+                    setShuffle(true);
+                    const randomIndex = Math.floor(Math.random() * favoriteTracks.length);
+                    handlePlay(favoriteTracks[randomIndex]);
+                  }}
+                  title={shuffle ? "Aleatorio activado" : "Reproducir favoritos en aleatorio"}
+                  type="button"
+                >
+                  <Icon name="shuffle" size={18} />
+                </button>
+              </div>
+            )}
           </div>
           {favoriteTracks.length > 0 ? (
             <SongTable
