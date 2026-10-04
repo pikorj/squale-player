@@ -6,6 +6,7 @@ export interface AudioMetadata {
   artist?: string;
   album?: string;
   coverUrl?: string;
+  coverBlob?: Blob;
 }
 
 /**
@@ -34,7 +35,11 @@ export async function extractAudioMetadata(file: File): Promise<AudioMetadata> {
 
     // 4. If cover art was not found by specific frame, attempt raw image scan in the metadata region
     if (!result.coverUrl && bytes.length > 64) {
-      result.coverUrl = scanRawImage(bytes);
+      const raw = scanRawImage(bytes);
+      if (raw) {
+        result.coverBlob = raw.blob;
+        result.coverUrl = raw.url;
+      }
     }
 
     return result;
@@ -75,7 +80,10 @@ function parseId3v2(bytes: Uint8Array, result: AudioMetadata): void {
         result.album = decodeTextFrame(bytes, dataOffset, frameSize);
       } else if (frameId === "PIC" && !result.coverUrl) {
         const cover = decodeApicFrame(bytes, dataOffset, frameSize);
-        if (cover) result.coverUrl = cover;
+        if (cover) {
+          result.coverBlob = cover.blob;
+          result.coverUrl = cover.url;
+        }
       }
       offset = dataOffset + frameSize;
     }
@@ -116,7 +124,10 @@ function parseId3v2(bytes: Uint8Array, result: AudioMetadata): void {
         result.album = decodeTextFrame(bytes, dataOffset, frameSize);
       } else if (frameId === "APIC" && !result.coverUrl) {
         const cover = decodeApicFrame(bytes, dataOffset, frameSize);
-        if (cover) result.coverUrl = cover;
+        if (cover) {
+          result.coverBlob = cover.blob;
+          result.coverUrl = cover.url;
+        }
       }
       offset = dataOffset + frameSize;
     }
@@ -137,7 +148,7 @@ function decodeTextFrame(bytes: Uint8Array, offset: number, size: number): strin
   }
 }
 
-function decodeApicFrame(bytes: Uint8Array, offset: number, size: number): string | undefined {
+function decodeApicFrame(bytes: Uint8Array, offset: number, size: number): { blob: Blob; url: string } | undefined {
   const frameBytes = bytes.subarray(offset, offset + size);
   if (frameBytes.length < 12) return undefined;
 
@@ -146,7 +157,7 @@ function decodeApicFrame(bytes: Uint8Array, offset: number, size: number): strin
     if (frameBytes[i] === 0xff && frameBytes[i + 1] === 0xd8 && frameBytes[i + 2] === 0xff) {
       const imgData = frameBytes.subarray(i);
       const blob = new Blob([imgData], { type: "image/jpeg" });
-      return URL.createObjectURL(blob);
+      return { blob, url: URL.createObjectURL(blob) };
     }
     if (
       frameBytes[i] === 0x89 &&
@@ -156,7 +167,7 @@ function decodeApicFrame(bytes: Uint8Array, offset: number, size: number): strin
     ) {
       const imgData = frameBytes.subarray(i);
       const blob = new Blob([imgData], { type: "image/png" });
-      return URL.createObjectURL(blob);
+      return { blob, url: URL.createObjectURL(blob) };
     }
   }
   return undefined;
@@ -199,6 +210,7 @@ function parseFlac(bytes: Uint8Array, result: AudioMetadata): void {
         if (imgStart + dataLen <= bytes.length) {
           const imgData = bytes.subarray(imgStart, imgStart + dataLen);
           const blob = new Blob([imgData], { type: mime || "image/jpeg" });
+          result.coverBlob = blob;
           result.coverUrl = URL.createObjectURL(blob);
         }
       }
@@ -233,7 +245,8 @@ function parseMp4(bytes: Uint8Array, result: AudioMetadata): void {
           if (dataPayload < bytes.length) {
             const raw = scanRawImage(bytes.subarray(dataPayload));
             if (raw) {
-              result.coverUrl = raw;
+              result.coverBlob = raw.blob;
+              result.coverUrl = raw.url;
               return;
             }
           }
@@ -246,14 +259,14 @@ function parseMp4(bytes: Uint8Array, result: AudioMetadata): void {
 /**
  * Fast scanner for JPEG / PNG magic bytes in header data
  */
-function scanRawImage(bytes: Uint8Array): string | undefined {
+function scanRawImage(bytes: Uint8Array): { blob: Blob; url: string } | undefined {
   const maxScan = Math.min(bytes.length, 3 * 1024 * 1024);
   for (let i = 0; i < maxScan - 8; i++) {
     // JPEG (FF D8 FF E0 / FF D8 FF E1 / FF D8 FF DB)
     if (bytes[i] === 0xff && bytes[i + 1] === 0xd8 && bytes[i + 2] === 0xff) {
       const imgData = bytes.subarray(i);
       const blob = new Blob([imgData], { type: "image/jpeg" });
-      return URL.createObjectURL(blob);
+      return { blob, url: URL.createObjectURL(blob) };
     }
     // PNG (89 50 4E 47)
     if (
@@ -264,8 +277,9 @@ function scanRawImage(bytes: Uint8Array): string | undefined {
     ) {
       const imgData = bytes.subarray(i);
       const blob = new Blob([imgData], { type: "image/png" });
-      return URL.createObjectURL(blob);
+      return { blob, url: URL.createObjectURL(blob) };
     }
   }
   return undefined;
 }
+

@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { audioEngine, TRACK_LIST, type SongTrack } from "./audioEngine";
-import { promptPWAInstall, subscribeToInstallPrompt, isStandaloneApp } from "./pwa";
+import { promptPWAInstall, subscribeToInstallPrompt, isStandaloneApp, isAppInstalled } from "./pwa";
 import { extractAudioMetadata } from "./metadataParser";
+import {
+  saveTrackRecords,
+  loadAllTrackRecords,
+  deleteTrackRecord,
+  clearAllTrackRecords,
+  recordsToSongTracks,
+  type StoredTrackRecord,
+} from "./trackStorage";
 
 type IconName =
   | "home"
@@ -155,6 +163,27 @@ const navItems: { icon: IconName; label: string }[] = [
 
 const baseWaveform = [16, 30, 24, 38, 29, 44, 33, 52, 42, 28, 38, 47, 29, 36, 20, 43, 31, 38, 25, 32, 22, 40, 27, 34, 20, 32, 24, 38, 28, 45, 33, 26, 20, 31];
 
+const EMPTY_TRACK: SongTrack = {
+  id: "squale-empty",
+  title: "Colección Vacía",
+  artist: "Importa tu música con +",
+  album: "SQUALE Hi-Fi",
+  duration: "0:00",
+  durationSec: 0,
+  image: "",
+  genre: "Local",
+  year: new Date().getFullYear(),
+  likes: 0,
+  bpm: 0,
+  key: "--",
+  lyrics: [
+    "No hay canciones en tu colección todavía.",
+    "Pulsa el botón '+' para importar archivos o carpetas completas.",
+    "SQUALE las recordará y guardará siempre en tu dispositivo.",
+  ],
+  audioUrl: "",
+};
+
 function Turntable({
   playing,
   speed,
@@ -284,11 +313,13 @@ function SongTable({
   currentTrackId,
   playing,
   onSelectTrack,
+  onDeleteTrack,
 }: {
   tracks: SongTrack[];
   currentTrackId: string;
   playing: boolean;
   onSelectTrack: (track: SongTrack) => void;
+  onDeleteTrack?: (trackId: string, e: React.MouseEvent) => void;
 }) {
   return (
     <div className="song-table">
@@ -333,7 +364,32 @@ function SongTable({
               <span><strong>{song.title}</strong><small>{song.artist}</small></span>
             </span>
             <span className="song-album">{song.album}</span>
-            <span className="song-duration">{song.duration}</span>
+            <span className="song-duration">
+              {song.duration}
+              {onDeleteTrack && song.id.startsWith("local-") && (
+                <span
+                  className="song-delete-action"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteTrack(song.id, e);
+                  }}
+                  title="Eliminar de biblioteca permanente"
+                  role="button"
+                  tabIndex={0}
+                  style={{
+                    marginLeft: 10,
+                    cursor: "pointer",
+                    display: "inline-grid",
+                    placeItems: "center",
+                    padding: 4,
+                    color: "#777",
+                    borderRadius: 4,
+                  }}
+                >
+                  <Icon name="close" size={13} />
+                </span>
+              )}
+            </span>
           </button>
         );
       })}
@@ -488,18 +544,49 @@ function SongDetailsModal({
 export default function App() {
   const [activeNav, setActiveNav] = useState("Inicio");
   const [activeCategory, setActiveCategory] = useState("Clásicos");
-  const [currentTrack, setCurrentTrack] = useState<SongTrack>(TRACK_LIST[0]);
+
+  // Persistent library storage state
+  const [savedTracks, setSavedTracks] = useState<SongTrack[]>([]);
+  const [isLibraryLoaded, setIsLibraryLoaded] = useState(false);
+  const [hideDemoTracks, setHideDemoTracks] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("squale_hide_demo_tracks");
+      if (saved !== null) return saved === "true";
+      return isAppInstalled();
+    } catch {
+      return false;
+    }
+  });
+
+  // Active track list: When demo tracks are hidden (installed app), ONLY user imported songs appear
+  const tracks = useMemo<SongTrack[]>(() => {
+    if (hideDemoTracks) {
+      return savedTracks;
+    }
+    return [...savedTracks, ...TRACK_LIST];
+  }, [savedTracks, hideDemoTracks]);
+
+  const [currentTrack, setCurrentTrack] = useState<SongTrack>(() => {
+    try {
+      const savedPref = localStorage.getItem("squale_hide_demo_tracks");
+      const installed = isAppInstalled();
+      const hideDemos = savedPref !== null ? savedPref === "true" : installed;
+      if (hideDemos) return EMPTY_TRACK;
+    } catch {}
+    return TRACK_LIST[0];
+  });
+
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(TRACK_LIST[0].durationSec);
+  const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState<33 | 45>(33);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [likedTracks, setLikedTracks] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem("squale_liked_tracks");
-      return saved ? new Set(JSON.parse(saved)) : new Set([TRACK_LIST[0].id]);
+      return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch {
-      return new Set([TRACK_LIST[0].id]);
+      return new Set();
     }
   });
 
@@ -547,12 +634,66 @@ export default function App() {
   const [crossfade, setCrossfade] = useState(true);
   const [normalizeVolume, setNormalizeVolume] = useState(true);
   const [autoPlayNext, setAutoPlayNext] = useState(true);
-  const [tracks, setTracks] = useState<SongTrack[]>(() => [...TRACK_LIST]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  // Load persistent library from IndexedDB on startup
+  useEffect(() => {
+    let isMounted = true;
+    loadAllTrackRecords()
+      .then((records) => {
+        if (!isMounted) return;
+        if (records.length > 0) {
+          const restored = recordsToSongTracks(records);
+          setSavedTracks(restored);
+        }
+        setIsLibraryLoaded(true);
+      })
+      .catch((err) => {
+        console.warn("Error cargando biblioteca de IndexedDB:", err);
+        if (isMounted) setIsLibraryLoaded(true);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Sync currentTrack when tracks change or library finishes loading
+  useEffect(() => {
+    if (!isLibraryLoaded) return;
+    if (tracks.length > 0) {
+      if (currentTrack.id === EMPTY_TRACK.id || !tracks.some((t) => t.id === currentTrack.id)) {
+        const lastId = localStorage.getItem("squale_last_track_id");
+        const found = tracks.find((t) => t.id === lastId);
+        const nextTrack = found || tracks[0];
+        setCurrentTrack(nextTrack);
+        setDuration(nextTrack.durationSec);
+      }
+    } else {
+      setCurrentTrack(EMPTY_TRACK);
+      setDuration(0);
+      setPlaying(false);
+      audioEngine.pause();
+    }
+  }, [tracks, isLibraryLoaded]);
+
+  // Listen for PWA installation
+  useEffect(() => {
+    const handleAppInstalled = () => {
+      setIsPWA(true);
+      setHideDemoTracks(true);
+      try {
+        localStorage.setItem("squale_is_installed", "true");
+        localStorage.setItem("squale_hide_demo_tracks", "true");
+      } catch {}
+      showNotification("¡App instalada! Se ha activado tu biblioteca personal exclusiva.");
+    };
+    window.addEventListener("appinstalled", handleAppInstalled);
+    return () => window.removeEventListener("appinstalled", handleAppInstalled);
+  }, []);
 
   // Tags state
   const [tags, setTags] = useState<Array<[string, string]>>([
@@ -641,10 +782,18 @@ export default function App() {
   // Play / Pause handlers
   const handlePlay = useCallback((track?: SongTrack) => {
     const target = track || currentTrack;
+    if (!target || target.id === EMPTY_TRACK.id || !target.audioUrl) {
+      setShowImportModal(true);
+      showNotification("Importa canciones o carpetas con el botón '+'");
+      return;
+    }
     setCurrentTrack(target);
     setDuration(target.durationSec);
     setPlaying(true);
     audioEngine.play(target);
+    try {
+      localStorage.setItem("squale_last_track_id", target.id);
+    } catch {}
   }, [currentTrack]);
 
   const handlePause = useCallback(() => {
@@ -654,12 +803,17 @@ export default function App() {
 
   const handleTogglePlay = useCallback(() => {
     triggerHaptic("medium");
+    if (tracks.length === 0 || currentTrack.id === EMPTY_TRACK.id || !currentTrack.audioUrl) {
+      setShowImportModal(true);
+      showNotification("Importa canciones o carpetas con el botón '+'");
+      return;
+    }
     if (playing) {
       handlePause();
     } else {
       handlePlay();
     }
-  }, [playing, handlePause, handlePlay]);
+  }, [playing, handlePause, handlePlay, tracks.length, currentTrack]);
 
   const handleNextTrack = useCallback(() => {
     triggerHaptic("light");
@@ -672,7 +826,7 @@ export default function App() {
       nextIndex = currIdx >= 0 ? (currIdx + 1) % tracks.length : 0;
     }
     const next = tracks[nextIndex];
-    handlePlay(next);
+    if (next) handlePlay(next);
   }, [tracks, currentTrack, shuffle, handlePlay]);
 
   const handlePrevTrack = useCallback(() => {
@@ -686,7 +840,7 @@ export default function App() {
     const currIdx = tracks.findIndex((t) => t.id === currentTrack.id);
     const prevIndex = currIdx >= 0 ? (currIdx - 1 + tracks.length) % tracks.length : 0;
     const prev = tracks[prevIndex];
-    handlePlay(prev);
+    if (prev) handlePlay(prev);
   }, [tracks, currentTrack, currentTime, handlePlay]);
 
   const processAudioFiles = useCallback(
@@ -702,13 +856,13 @@ export default function App() {
         return;
       }
 
-      showNotification(`Procesando ${audioFiles.length} archivo(s)...`);
+      showNotification(`Procesando y guardando ${audioFiles.length} archivo(s)...`);
 
-      const createdTracks: SongTrack[] = [];
+      const recordsToSave: StoredTrackRecord[] = [];
 
       for (let index = 0; index < audioFiles.length; index++) {
         const file = audioFiles[index];
-        const url = URL.createObjectURL(file);
+        const tempUrl = URL.createObjectURL(file);
         const baseName = file.name.replace(/\.[^/.]+$/, "");
         let title = baseName;
         let artist = "Archivo local";
@@ -720,7 +874,7 @@ export default function App() {
           title = parts.slice(1).join(" - ").trim();
         }
 
-        let coverUrl = "";
+        let coverBlob: Blob | null = null;
         try {
           const meta = await extractAudioMetadata(file);
           if (meta.title && meta.title.trim()) {
@@ -732,8 +886,8 @@ export default function App() {
           if (meta.album && meta.album.trim()) {
             album = meta.album.trim();
           }
-          if (meta.coverUrl) {
-            coverUrl = meta.coverUrl;
+          if (meta.coverBlob) {
+            coverBlob = meta.coverBlob;
           }
         } catch (err) {
           console.warn("Error leyendo metadatos de", file.name, err);
@@ -746,7 +900,7 @@ export default function App() {
         // Get audio duration
         const durationSec = await new Promise<number>((resolve) => {
           const temp = new Audio();
-          temp.src = url;
+          temp.src = tempUrl;
           temp.onloadedmetadata = () => {
             const dur = Math.round(temp.duration);
             resolve(dur > 0 ? dur : 180);
@@ -756,14 +910,16 @@ export default function App() {
           };
         });
 
-        const newTrack: SongTrack = {
-          id: `local-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
+        const trackId = `local-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`;
+
+        const record: StoredTrackRecord = {
+          id: trackId,
           title,
           artist,
           album,
           duration: formatTime(durationSec),
           durationSec: Math.max(1, durationSec),
-          image: coverUrl, // Has cover if coverUrl exists, otherwise empty string for vinyl fallback
+          coverBlob,
           genre: "Audio importado",
           year: new Date().getFullYear(),
           likes: 1,
@@ -774,25 +930,71 @@ export default function App() {
             `Artista: ${artist}`,
             `Álbum: ${album}`,
             `Formato: ${file.type || "audio"} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`,
-            coverUrl ? "Carátula de álbum embebida cargada en el tocadiscos" : "Sin carátula (mostrando disco de vinilo clásico)",
-            "Reproduciendo en tocadiscos analógico SQUALE",
+            coverBlob ? "Carátula de álbum embebida cargada en el tocadiscos" : "Sin carátula (mostrando disco de vinilo clásico)",
+            "Guardada permanentemente en SQUALE",
           ],
-          audioUrl: url,
+          audioBlob: file,
+          addedAt: Date.now() + index,
         };
 
-        createdTracks.push(newTrack);
+        recordsToSave.push(record);
       }
 
-      setTracks((prev) => [...createdTracks, ...prev]);
-      handlePlay(createdTracks[0]);
+      try {
+        await saveTrackRecords(recordsToSave);
+      } catch (err) {
+        console.error("Error guardando en IndexedDB:", err);
+      }
+
+      const createdTracks = recordsToSongTracks(recordsToSave);
+      setSavedTracks((prev) => [...createdTracks, ...prev]);
+
+      if (createdTracks.length > 0) {
+        handlePlay(createdTracks[0]);
+      }
+
       showNotification(
         createdTracks.length === 1
-          ? `¡"${createdTracks[0].title}" importado y reproduciéndose!`
-          : `¡${createdTracks.length} archivos de audio importados!`,
+          ? `¡"${createdTracks[0].title}" guardada permanentemente!`
+          : `¡${createdTracks.length} canciones guardadas permanentemente en tu dispositivo!`,
       );
     },
     [handlePlay],
   );
+
+  const handleDeleteTrack = async (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    triggerHaptic("medium");
+    try {
+      await deleteTrackRecord(id);
+      setSavedTracks((prev) => prev.filter((t) => t.id !== id));
+      showNotification("Canción eliminada de tu biblioteca");
+    } catch (err) {
+      console.warn("Error eliminando pista:", err);
+    }
+  };
+
+  const handleClearImported = async () => {
+    triggerHaptic("heavy");
+    if (window.confirm("¿Seguro que deseas eliminar todas las canciones importadas guardadas en este dispositivo?")) {
+      try {
+        await clearAllTrackRecords();
+        setSavedTracks([]);
+        showNotification("Biblioteca local vaciada");
+      } catch (err) {
+        console.warn("Error vaciando biblioteca:", err);
+      }
+    }
+  };
+
+  const handleToggleHideDemo = (val: boolean) => {
+    triggerHaptic("light");
+    setHideDemoTracks(val);
+    try {
+      localStorage.setItem("squale_hide_demo_tracks", String(val));
+    } catch {}
+    showNotification(val ? "Canciones de prueba ocultadas" : "Canciones de prueba visibles");
+  };
 
   const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -1218,58 +1420,91 @@ export default function App() {
             ))}
           </div>
 
-          <div className="album-strip">
-            {visibleAlbums.length ? (
-              visibleAlbums.map((album, index) => (
-                <article
-                  className="album-card"
-                  key={album.id}
-                  onClick={() => {
-                    const track = tracks.find((t) => t.id === album.trackId) || tracks[0];
-                    handlePlay(track);
-                  }}
-                  style={{ cursor: "pointer", "--card-index": Math.min(index, 12) } as React.CSSProperties}
-                >
-                  {album.image ? (
-                    <img alt={`Portada de ${album.title}`} src={album.image} />
-                  ) : (
-                    <div className="album-fallback-vinyl">
-                      <Icon name="disc" size={36} />
-                    </div>
-                  )}
-                  <h3>{album.title}</h3>
-                  <p>por <u>{album.artist}</u></p>
-                </article>
-              ))
-            ) : (
-              <p className="empty-state">No encontramos resultados para “{query}”.</p>
-            )}
-          </div>
+          {tracks.length === 0 ? (
+            <div
+              className="empty-state"
+              style={{
+                padding: "36px 20px",
+                textAlign: "center",
+                margin: "20px 0",
+                background: "#dedede",
+                border: "2px solid #222",
+                borderRadius: 12,
+              }}
+            >
+              <Icon name="vinyl" size={44} />
+              <h3 style={{ marginTop: 14, fontFamily: "Silkscreen", fontSize: 16 }}>BIENVENIDO A SQUALE</h3>
+              <p style={{ fontSize: 13, color: "#333", maxWidth: 440, margin: "8px auto 16px", lineHeight: 1.5 }}>
+                En la versión instalada las pistas de prueba se han retirado.
+                Tu reproductor tocadiscos analógico está listo para que importes tus archivos o carpetas completas de música.
+              </p>
+              <button
+                className="btn-primary"
+                onClick={() => setShowImportModal(true)}
+                style={{
+                  padding: "12px 22px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontFamily: "Silkscreen",
+                  fontSize: 12,
+                  boxShadow: "2px 2px 0 #111",
+                }}
+                type="button"
+              >
+                + Importar Música o Carpetas
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="album-strip">
+                {visibleAlbums.length ? (
+                  visibleAlbums.map((album, index) => (
+                    <article
+                      className="album-card"
+                      key={album.id}
+                      onClick={() => {
+                        const track = tracks.find((t) => t.id === album.trackId) || tracks[0];
+                        if (track) handlePlay(track);
+                      }}
+                      style={{ cursor: "pointer", "--card-index": Math.min(index, 12) } as React.CSSProperties}
+                    >
+                      {album.image ? (
+                        <img alt={`Portada de ${album.title}`} src={album.image} />
+                      ) : (
+                        <div className="album-fallback-vinyl">
+                          <Icon name="disc" size={36} />
+                        </div>
+                      )}
+                      <h3>{album.title}</h3>
+                      <p>por <u>{album.artist}</u></p>
+                    </article>
+                  ))
+                ) : (
+                  <p className="empty-state">No encontramos resultados para “{query}”.</p>
+                )}
+              </div>
 
-          <section className="playlists">
-            <h2>Listas favoritas ({dynamicAlbums.length})</h2>
-            <PlaylistRow
-              count={18}
-              image={dynamicAlbums[1]?.image || dynamicAlbums[0]?.image || ""}
-              index={0}
-              onPlay={() => handlePlay(tracks[1] || tracks[0])}
-              title="Lo mejor de Emilia Bryan"
-            />
-            <PlaylistRow
-              count={24}
-              image={dynamicAlbums[2]?.image || dynamicAlbums[0]?.image || ""}
-              index={1}
-              onPlay={() => handlePlay(tracks[2] || tracks[0])}
-              title="Tardes acústicas y lofi"
-            />
-            <PlaylistRow
-              count={12}
-              image={dynamicAlbums[4]?.image || dynamicAlbums[0]?.image || ""}
-              index={2}
-              onPlay={() => handlePlay(tracks[4] || tracks[0])}
-              title="La ciudad duerme en vinilo"
-            />
-          </section>
+              <section className="playlists">
+                <h2>Listas y Colecciones ({dynamicAlbums.length})</h2>
+                <PlaylistRow
+                  count={tracks.length}
+                  image={dynamicAlbums[0]?.image || ""}
+                  index={0}
+                  onPlay={() => handlePlay(tracks[0])}
+                  title={dynamicAlbums[0]?.title || "Colección analógica"}
+                />
+                {tracks.length > 1 && (
+                  <PlaylistRow
+                    count={Math.max(1, Math.floor(tracks.length / 2))}
+                    image={dynamicAlbums[1]?.image || dynamicAlbums[0]?.image || ""}
+                    index={1}
+                    onPlay={() => handlePlay(tracks[1])}
+                    title="Sesión Hi-Fi"
+                  />
+                )}
+              </section>
+            </>
+          )}
         </section>
       ) : activeNav === "Buscar" ? (
         <section key="screen-buscar" className="mobile-search-page secondary-screen" aria-label="Buscar música" style={{ display: "block", gridColumn: 2 }}>
@@ -1382,6 +1617,7 @@ export default function App() {
           {favoriteTracks.length > 0 ? (
             <SongTable
               currentTrackId={currentTrack.id}
+              onDeleteTrack={handleDeleteTrack}
               onSelectTrack={handlePlay}
               playing={playing}
               tracks={favoriteTracks}
@@ -1424,12 +1660,51 @@ export default function App() {
               </button>
             </div>
           </div>
-          <SongTable
-            currentTrackId={currentTrack.id}
-            onSelectTrack={handlePlay}
-            playing={playing}
-            tracks={tracks}
-          />
+          {tracks.length > 0 ? (
+            <SongTable
+              currentTrackId={currentTrack.id}
+              onDeleteTrack={handleDeleteTrack}
+              onSelectTrack={handlePlay}
+              playing={playing}
+              tracks={tracks}
+            />
+          ) : (
+            <div
+              className="empty-state"
+              style={{
+                padding: "40px 20px",
+                textAlign: "center",
+                background: "#dedede",
+                border: "2px solid #222",
+                borderRadius: 12,
+                marginTop: 16,
+              }}
+            >
+              <Icon name="folder" size={40} />
+              <p style={{ marginTop: 12, fontWeight: "bold", fontSize: 15 }}>
+                Tu biblioteca personal está vacía
+              </p>
+              <p style={{ fontSize: 12, color: "#555", maxWidth: 420, margin: "6px auto 16px", lineHeight: 1.5 }}>
+                En la aplicación instalada, las canciones de prueba desaparecen automáticamente para dar prioridad a tus archivos.
+                Importa carpetas enteras o pistas de audio locales para comenzar a escuchar.
+              </p>
+              <button
+                className="btn-primary"
+                onClick={() => setShowImportModal(true)}
+                style={{
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontFamily: "Silkscreen",
+                  fontSize: 11,
+                  boxShadow: "2px 2px 0 #111",
+                }}
+                type="button"
+              >
+                + Importar Música o Carpetas
+              </button>
+            </div>
+          )}
         </section>
       ) : activeNav === "Álbumes" ? (
         <section key="screen-albumes" className="secondary-screen">
@@ -1442,7 +1717,7 @@ export default function App() {
                   key={album.id}
                   onClick={() => {
                     const track = tracks.find((t) => t.id === album.trackId) || tracks[0];
-                    handlePlay(track);
+                    if (track) handlePlay(track);
                   }}
                   style={{ "--card-index": Math.min(index, 16) } as React.CSSProperties}
                   type="button"
@@ -1513,6 +1788,32 @@ export default function App() {
                 <p style={{ margin: 0, fontSize: 12 }}>
                   Importa canciones o carpetas enteras de música desde tu dispositivo Android, iOS, Windows o Mac (.mp3, .wav, .ogg, .flac).
                 </p>
+
+                <div style={{ background: "#dedede", padding: "10px 14px", borderRadius: 8, border: "1px dashed #666", fontSize: 12 }}>
+                  <strong>Biblioteca guardada en este dispositivo:</strong>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
+                    <span>{savedTracks.length} canción(es) persistidas en almacenamiento seguro</span>
+                    {savedTracks.length > 0 && (
+                      <button
+                        onClick={handleClearImported}
+                        style={{
+                          background: "#fee2e2",
+                          color: "#991b1b",
+                          border: "1px solid #ef4444",
+                          borderRadius: 6,
+                          padding: "4px 8px",
+                          fontFamily: "Silkscreen",
+                          fontSize: 10,
+                          cursor: "pointer",
+                        }}
+                        type="button"
+                      >
+                        Vaciar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
                     onClick={() => {
@@ -1564,6 +1865,23 @@ export default function App() {
                   </button>
                 </div>
               </div>
+            </section>
+
+            <section style={{ "--card-index": 2 } as React.CSSProperties}>
+              <h2>Canciones de Demostración (Demo)</h2>
+              <label>
+                <span>
+                  <strong>Ocultar canciones de prueba</strong>
+                  <small>
+                    Al instalar SQUALE en tu dispositivo, las pistas demo desaparecen automáticamente para que disfrutes exclusivamente de tus archivos.
+                  </small>
+                </span>
+                <input
+                  checked={hideDemoTracks}
+                  onChange={(e) => handleToggleHideDemo(e.target.checked)}
+                  type="checkbox"
+                />
+              </label>
             </section>
 
             <section style={{ "--card-index": 2 } as React.CSSProperties}>

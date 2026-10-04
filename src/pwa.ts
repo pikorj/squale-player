@@ -41,6 +41,9 @@ export function registerServiceWorker() {
     window.addEventListener('appinstalled', () => {
       deferredPrompt = null;
       notifyInstallListeners(false);
+      try {
+        localStorage.setItem('squale_is_installed', 'true');
+      } catch {}
       console.log('[SQUALE PWA] ¡App instalada en el dispositivo!');
     });
   }
@@ -67,7 +70,13 @@ export async function promptPWAInstall(): Promise<boolean> {
     const choice = await deferredPrompt.userChoice;
     deferredPrompt = null;
     notifyInstallListeners(false);
-    return choice.outcome === 'accepted';
+    if (choice.outcome === 'accepted') {
+      try {
+        localStorage.setItem('squale_is_installed', 'true');
+      } catch {}
+      return true;
+    }
+    return false;
   } catch (err) {
     console.error('[SQUALE PWA] Error mostrando prompt de instalación:', err);
     return false;
@@ -76,9 +85,27 @@ export async function promptPWAInstall(): Promise<boolean> {
 
 export function isStandaloneApp(): boolean {
   if (typeof window === 'undefined') return false;
-  return (
+  const isStandalone =
     window.matchMedia('(display-mode: standalone)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
-    document.referrer.includes('android-app://')
-  );
+    document.referrer.includes('android-app://');
+
+  if (isStandalone) {
+    try {
+      localStorage.setItem('squale_is_installed', 'true');
+    } catch {}
+  }
+
+  return isStandalone;
 }
+
+export function isAppInstalled(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (isStandaloneApp()) return true;
+  try {
+    return localStorage.getItem('squale_is_installed') === 'true';
+  } catch {
+    return false;
+  }
+}
+
