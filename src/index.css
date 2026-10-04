@@ -2491,29 +2491,7 @@ button.song-row:hover .song-thumb-overlay,
   }
 
   .topbar {
-    height: auto;
-    flex-shrink: 0;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 12px;
-    padding: max(12px, env(safe-area-inset-top, 0px)) 16px 10px;
-    border-bottom: 1.5px solid #222;
-  }
-
-  .brand {
-    font-size: 19px;
-  }
-
-  .searchbox {
-    display: none;
-  }
-
-  .header-actions {
-    gap: 14px;
-  }
-
-  .header-actions > button:first-child {
-    display: none;
+    display: none !important;
   }
 
   .sidebar {
@@ -3215,6 +3193,7 @@ button.song-row:hover .song-thumb-overlay,
     background: #111;
   }
 
+  .discover-home,
   .discover-panel,
   .secondary-screen,
   .mobile-search-page {
@@ -3223,11 +3202,12 @@ button.song-row:hover .song-thumb-overlay,
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
-    padding: 16px 16px calc(64px + 56px + env(safe-area-inset-bottom, 0px) + 24px);
+    padding: max(16px, calc(env(safe-area-inset-top, 0px) + 12px)) 16px calc(64px + 56px + env(safe-area-inset-bottom, 0px) + 24px);
     scrollbar-width: none;
     border: none;
   }
 
+  .discover-home::-webkit-scrollbar,
   .discover-panel::-webkit-scrollbar,
   .secondary-screen::-webkit-scrollbar,
   .mobile-search-page::-webkit-scrollbar {
