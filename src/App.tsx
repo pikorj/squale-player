@@ -44,7 +44,12 @@ type IconName =
   | "more-vertical";
 
 const iconPaths: Record<IconName, React.ReactNode> = {
-  home: <path d="M3 11.5 12 4l9 7.5v8a1.5 1.5 0 0 1-1.5 1.5h-5v-6h-5v6h-5A1.5 1.5 0 0 1 3 19.5Z" />,
+  home: (
+    <>
+      <path d="m3 9.5 9-7 9 7v10.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 20Z" />
+      <path d="M9 21.5v-6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6" />
+    </>
+  ),
   heart: <path d="M20.8 5.8a5.5 5.5 0 0 0-7.8 0L12 6.9l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 22l8.8-8.4a5.5 5.5 0 0 0 0-7.8Z" />,
   music: <path d="M9 18V5l11-2v13M9 9l11-2M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm11-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />,
   disc: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" /></>,
@@ -93,7 +98,7 @@ function Icon({
   const isFilled =
     filled !== undefined
       ? filled
-      : name === "home" || name === "play" || name === "more-vertical";
+      : name === "play" || name === "more-vertical";
 
   return (
     <svg
