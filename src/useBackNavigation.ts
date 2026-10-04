@@ -185,8 +185,16 @@ export function useBackNavigation({
     }
   }, [isPlayerSubOpen]);
 
-  // 5. Sincronizar Reproductor Móvil Expandido
+  // 5. Sincronizar Reproductor Móvil Expandido y Color de la Barra del Teléfono
   useEffect(() => {
+    // Sincronizar dinámicamente el color de la barra de estado y gestos (hora, batería, etc.)
+    try {
+      const themeMeta = document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) {
+        themeMeta.setAttribute("content", mobilePlayerOpen ? "#fcfcfc" : "#e6e6e6");
+      }
+    } catch {}
+
     if (mobilePlayerOpen) {
       if (!playerPushedRef.current) {
         playerPushedRef.current = true;

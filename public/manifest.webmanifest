@@ -8,8 +8,8 @@
   "display": "standalone",
   "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
   "orientation": "portrait",
-  "background_color": "#181818",
-  "theme_color": "#181818",
+  "background_color": "#e6e6e6",
+  "theme_color": "#e6e6e6",
   "lang": "es",
   "categories": ["music", "audio", "entertainment", "productivity"],
   "icons": [

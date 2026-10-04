@@ -29,6 +29,7 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  background: #e6e6e6;
 }
 
 body {
@@ -2484,6 +2485,7 @@ button.song-row:hover .song-thumb-overlay,
     box-shadow: none;
     overflow: hidden;
     padding: 0;
+    background: #e6e6e6;
   }
 
   .player-panel {
