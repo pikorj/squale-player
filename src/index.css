@@ -3785,6 +3785,107 @@ button.song-row:hover .song-thumb-overlay,
   box-shadow: none;
 }
 
+/* Import Modal Options & Cards */
+.import-modal-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.import-option-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  background: #f4f4f4;
+  border: 2px solid #181818;
+  border-radius: 10px;
+  box-shadow: 3px 3px 0 #181818;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.12s ease;
+}
+
+.import-option-card:hover {
+  background: #fff;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #181818;
+}
+
+.import-option-card:active {
+  transform: translate(2px, 2px) !important;
+  box-shadow: 1px 1px 0 #181818;
+}
+
+.import-option-card.primary {
+  background: #181818;
+  color: #eee;
+}
+
+.import-option-card.primary:hover {
+  background: #252525;
+}
+
+.import-option-card.primary .import-option-icon {
+  background: #333;
+  color: #fbbf24;
+}
+
+.import-option-card.primary .import-option-text small {
+  color: #bbb;
+}
+
+.import-option-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: #e2e2e2;
+  border: 2px solid currentColor;
+  display: grid;
+  place-items: center;
+  color: #181818;
+}
+
+.import-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.import-option-text strong {
+  font-family: "Silkscreen", monospace;
+  font-size: 12px;
+  letter-spacing: -0.5px;
+}
+
+.import-option-text small {
+  font-size: 11px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.import-modal-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #dfdfdf;
+  border: 1px dashed #777;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #333;
+  margin-top: 6px;
+}
+
+.import-modal-tip svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 @media (min-width: 1051px) {
   .mobile-mini-player {
     display: none !important;

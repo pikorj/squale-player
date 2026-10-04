@@ -31,6 +31,7 @@ type IconName =
   | "wifi"
   | "wifi-off"
   | "plus"
+  | "folder"
   | "more-vertical";
 
 const iconPaths: Record<IconName, React.ReactNode> = {
@@ -61,6 +62,7 @@ const iconPaths: Record<IconName, React.ReactNode> = {
   wifi: <><path d="M5 12.55a11 11 0 0 1 14.08 0" /><path d="M1.42 9a16 16 0 0 1 21.16 0" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></>,
   "wifi-off": <><line x1="1" y1="1" x2="23" y2="23" /><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" /><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" /><path d="M10.71 5.05A16 16 0 0 1 22.58 9" /><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" /><path d="M8.53 16.11a6 6 0 0 1 6.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></>,
   plus: <><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></>,
+  folder: <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />,
   "more-vertical": (
     <>
       <circle cx="12" cy="5" r="1.8" fill="currentColor" stroke="none" />
@@ -548,6 +550,8 @@ export default function App() {
   const [tracks, setTracks] = useState<SongTrack[]>(() => [...TRACK_LIST]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
   // Tags state
@@ -797,6 +801,73 @@ export default function App() {
     }
   };
 
+  const handleFolderImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processAudioFiles(Array.from(e.target.files));
+      e.target.value = "";
+    }
+  };
+
+  const openFolderPicker = async () => {
+    setShowImportModal(false);
+    triggerHaptic("medium");
+
+    // Modern File System Access API for Chromium / Android supported browsers
+    if ("showDirectoryPicker" in window) {
+      try {
+        const dirHandle = await (window as any).showDirectoryPicker({
+          mode: "read",
+        });
+        showNotification("Escaneando carpeta de música...");
+
+        const audioFiles: File[] = [];
+        async function readDirectory(handle: any) {
+          for await (const entry of handle.values()) {
+            if (entry.kind === "file") {
+              const file = await entry.getFile();
+              if (
+                file.type.startsWith("audio/") ||
+                /\.(mp3|wav|ogg|m4a|aac|flac|wma)$/i.test(file.name)
+              ) {
+                audioFiles.push(file);
+              }
+            } else if (entry.kind === "directory") {
+              await readDirectory(entry);
+            }
+          }
+        }
+
+        await readDirectory(dirHandle);
+
+        if (audioFiles.length > 0) {
+          await processAudioFiles(audioFiles);
+        } else {
+          showNotification("No se encontraron pistas de audio en la carpeta seleccionada.");
+        }
+        return;
+      } catch (err: any) {
+        if (err.name === "AbortError") {
+          // User canceled folder selection
+          return;
+        }
+        console.warn("showDirectoryPicker falló o no permitido, usando selector nativo:", err);
+      }
+    }
+
+    // Standard cross-platform fallback (webkitdirectory, Android / iOS / Safari)
+    if (folderInputRef.current) {
+      folderInputRef.current.click();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const openFilePicker = () => {
+    setShowImportModal(false);
+    triggerHaptic("light");
+    fileInputRef.current?.click();
+  };
+
   const handleSeek = (ratio: number) => {
     triggerHaptic("light");
     audioEngine.seek(ratio);
@@ -975,6 +1046,16 @@ export default function App() {
         type="file"
       />
 
+      {/* Hidden directory input for reading entire folders (Android / iOS / Desktop) */}
+      <input
+        {...({ webkitdirectory: "", directory: "" } as any)}
+        multiple
+        onChange={handleFolderImport}
+        ref={folderInputRef}
+        style={{ display: "none" }}
+        type="file"
+      />
+
       {/* Drag overlay notice */}
       {isDragging && (
         <div
@@ -1048,9 +1129,12 @@ export default function App() {
 
         <div className="header-actions">
           <button
-            aria-label="Importar archivos de música"
-            onClick={() => fileInputRef.current?.click()}
-            title="Importar archivos de audio (.mp3, .wav, .ogg)"
+            aria-label="Importar archivos o carpetas de música"
+            onClick={() => {
+              triggerHaptic("light");
+              setShowImportModal(true);
+            }}
+            title="Importar música o carpetas enteras"
             type="button"
           >
             <Icon name="plus" size={19} />
@@ -1315,10 +1399,13 @@ export default function App() {
             <span>{tracks.length} canciones</span>
             <div className="library-tools-actions">
               <button
-                aria-label="Importar archivos de audio"
+                aria-label="Importar archivos o carpetas de audio"
                 className="btn-primary"
-                onClick={() => fileInputRef.current?.click()}
-                title="Importar archivos de audio (.mp3, .wav, .ogg)"
+                onClick={() => {
+                  triggerHaptic("light");
+                  setShowImportModal(true);
+                }}
+                title="Importar archivos o carpetas enteras"
                 type="button"
               >
                 <Icon name="plus" size={18} />
@@ -1421,32 +1508,61 @@ export default function App() {
             </section>
 
             <section style={{ "--card-index": 1 } as React.CSSProperties}>
-              <h2>Archivos Locales</h2>
+              <h2>Archivos Locales & Carpetas</h2>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <p style={{ margin: 0, fontSize: 12 }}>
-                  Importa canciones desde tu dispositivo (.mp3, .wav, .ogg, .flac) para reproducirlas en el tocadiscos analógico.
+                  Importa canciones o carpetas enteras de música desde tu dispositivo Android, iOS, Windows o Mac (.mp3, .wav, .ogg, .flac).
                 </p>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    padding: "10px 16px",
-                    background: "#111",
-                    color: "#eee",
-                    border: "2px solid #111",
-                    borderRadius: 8,
-                    fontFamily: "Silkscreen",
-                    fontSize: 11,
-                    cursor: "pointer",
-                    boxShadow: "2px 2px 0 #111",
-                  }}
-                  type="button"
-                >
-                  <Icon name="plus" size={16} /> Importar Archivos de Audio
-                </button>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button
+                    onClick={() => {
+                      triggerHaptic("light");
+                      openFolderPicker();
+                    }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "10px 16px",
+                      background: "#111",
+                      color: "#eee",
+                      border: "2px solid #111",
+                      borderRadius: 8,
+                      fontFamily: "Silkscreen",
+                      fontSize: 11,
+                      cursor: "pointer",
+                      boxShadow: "2px 2px 0 #111",
+                    }}
+                    type="button"
+                  >
+                    <Icon name="folder" size={16} /> Leer Carpeta Completa
+                  </button>
+                  <button
+                    onClick={() => {
+                      triggerHaptic("light");
+                      openFilePicker();
+                    }}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "10px 16px",
+                      background: "#e6e6e6",
+                      color: "#111",
+                      border: "2px solid #111",
+                      borderRadius: 8,
+                      fontFamily: "Silkscreen",
+                      fontSize: 11,
+                      cursor: "pointer",
+                      boxShadow: "2px 2px 0 #111",
+                    }}
+                    type="button"
+                  >
+                    <Icon name="plus" size={16} /> Seleccionar Archivos
+                  </button>
+                </div>
               </div>
             </section>
 
@@ -2081,6 +2197,79 @@ export default function App() {
                 type="button"
               >
                 Instalar Ahora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Music Import / Folder Modal */}
+      {showImportModal && (
+        <div className="pwa-modal-backdrop" onClick={() => setShowImportModal(false)}>
+          <div className="pwa-modal-box import-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="pwa-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Icon name="folder" size={20} />
+                <h3>IMPORTAR MÚSICA</h3>
+              </div>
+              <button aria-label="Cerrar modal" onClick={() => setShowImportModal(false)} type="button">
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+            <div className="pwa-modal-body">
+              <strong>Elige cómo deseas añadir música a SQUALE:</strong>
+              <p>
+                Puedes cargar carpetas completas de música desde tu almacenamiento local o seleccionar pistas individuales.
+              </p>
+
+              <div className="import-modal-options">
+                <button
+                  className="import-option-card primary"
+                  onClick={openFolderPicker}
+                  type="button"
+                >
+                  <div className="import-option-icon">
+                    <Icon name="folder" size={24} />
+                  </div>
+                  <div className="import-option-text">
+                    <strong>Leer Carpeta Completa</strong>
+                    <small>
+                      Escanea y añade automáticamente todas las canciones dentro de un directorio y subcarpetas (Android, iOS y PC).
+                    </small>
+                  </div>
+                </button>
+
+                <button
+                  className="import-option-card"
+                  onClick={openFilePicker}
+                  type="button"
+                >
+                  <div className="import-option-icon">
+                    <Icon name="music" size={24} />
+                  </div>
+                  <div className="import-option-text">
+                    <strong>Seleccionar Archivos de Audio</strong>
+                    <small>
+                      Elige una o varias canciones (.mp3, .wav, .flac, .ogg, .m4a) de tu explorador de archivos.
+                    </small>
+                  </div>
+                </button>
+              </div>
+
+              <div className="import-modal-tip">
+                <Icon name="vinyl" size={14} />
+                <span>
+                  <strong>Tip Android / iOS:</strong> Al elegir "Leer Carpeta Completa", se abrirá el gestor de archivos de tu sistema para conceder acceso a la carpeta deseada.
+                </span>
+              </div>
+            </div>
+            <div className="pwa-modal-footer">
+              <button
+                className="secondary"
+                onClick={() => setShowImportModal(false)}
+                type="button"
+              >
+                Cancelar
               </button>
             </div>
           </div>
