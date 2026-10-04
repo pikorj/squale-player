@@ -1219,6 +1219,7 @@ export default function App() {
   );
 
   const isCurrentLiked = likedTracks.has(currentTrack.id);
+  const isInstalled = isPWA || isAppInstalled();
   const progressRatio = duration > 0 ? currentTime / duration : 0;
 
   return (
@@ -1330,6 +1331,17 @@ export default function App() {
         </label>
 
         <div className="header-actions">
+          {!isInstalled && (
+            <button
+              className="web-install-btn"
+              onClick={handlePWAInstall}
+              title="Instalar SQUALE como aplicación en tu dispositivo"
+              type="button"
+            >
+              <Icon name="download" size={15} />
+              <span>Instalar App</span>
+            </button>
+          )}
           <button
             aria-label="Importar archivos o carpetas de música"
             onClick={() => {
@@ -1926,7 +1938,7 @@ export default function App() {
                         : "✓ Navegador web con Service Worker activo"}
                     </p>
                   </div>
-                  {!isPWA && (
+                  {!isInstalled && (
                     <button
                       className="pwa-install-btn"
                       onClick={handlePWAInstall}
