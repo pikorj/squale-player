@@ -1840,18 +1840,20 @@ export default function App() {
           </div>
 
           <div className="expanded-track">
-            <h1>{currentTrack.title}</h1>
-            <p>
-              {currentTrack.artist} · {currentTrack.album}
-              {playing && (
-                <span className="live-dancing-badge" style={{ marginLeft: 8 }} title="Reproduciendo">
-                  <span className="live-dancing-bar" />
-                  <span className="live-dancing-bar" />
-                  <span className="live-dancing-bar" />
-                  <span className="live-dancing-bar" />
-                </span>
-              )}
-            </p>
+            <div className="track-info-text">
+              <h1>{currentTrack.title}</h1>
+              <p>
+                {currentTrack.artist} · {currentTrack.album}
+                {playing && (
+                  <span className="live-dancing-badge" style={{ marginLeft: 8 }} title="Reproduciendo">
+                    <span className="live-dancing-bar" />
+                    <span className="live-dancing-bar" />
+                    <span className="live-dancing-bar" />
+                    <span className="live-dancing-bar" />
+                  </span>
+                )}
+              </p>
+            </div>
             <button
               aria-label={isCurrentLiked ? "Quitar de favoritos" : "Añadir a favoritos"}
               aria-pressed={isCurrentLiked}
